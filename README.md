@@ -91,7 +91,7 @@ Selain itu, terdapat 6 kolom target dalam dataset ini, yang meliputi :
 
 *   **_Missing Value Identification_**
 
-    ![Gambar 1. Distribusi missing value pada kolom Tool Wear [min] ](missing_value_distribution.PNG)
+    ![Gambar 1. Distribusi missing value pada kolom Tool Wear [min] ](https://github.com/azri-andrizan/Assets/blob/main/image_predictive_analysis/missing_value_distribution.PNG)
     Gambar 1. Distribusi _missing value_ pada kolom Tool Wear
 
     Pada variabel _Tool wear_ (min), ditemukan 120 baris data dengan nilai 0. Setelah dilakukan analisis lebih lanjut, nilai 0 pada 120 baris data tersebut dianggap tidak akurat atau tidak valid berdasarkan alasan berikut:
@@ -104,22 +104,7 @@ Selain itu, terdapat 6 kolom target dalam dataset ini, yang meliputi :
 * **_Univariate Analysis_**
 
     * _Categorical Features_
-    ![Gambar 2. Univariate Analysis Categorical Features ](univariate_categorical.png)
-    Gambar 2. _Univariate Analysis Categorical Features_
-
-        Berdasarkan Gambar 2 diatas, tipe mesin dengan distribusi terbanyak adalah tipe L. Dataset membagi tipe mesin menjadi tiga kategori:
-    
-        - Tipe L (_Light_): Mesin ringan untuk beban rendah dan durasi operasi singkat, cocok untuk produksi skala kecil.
-        - Tipe M (_Medium_): Mesin menengah untuk aplikasi dengan beban sedang dan operasi lebih lama, umum digunakan pada skala produksi menengah.
-        - Tipe H (_Heavy_): Mesin berat untuk aplikasi intensif seperti produksi skala besar atau industri berat dengan durasi operasi tinggi.
-
-        _Failure Type_ yang paling banyak distribusinya pada dataset adalah TWF (_Tool Wear Failure_) dengan distribusi sebesar 97 %. Berikut keterangan dari masing-masing Failure Type:
-        - TWF (_Tool Wear Failure_) adalah kegagalan alat karena keausan.
-        - HDF (_Heat Dissipation Failure_) adalah kegagalan karena masalah disipasi panas.
-        - PWF (_Power Failure_) adalah kegagalan yang disebabkan oleh masalah daya.
-        - OSF (_Overstrain Failure_) adalah Kegagalan yang disebabkan oleh tekanan berlebih.
-        - RNF (_Random Failures_) adalah Kegagalan acak yang tidak terklasifikasikan ke dalam kategori kegagalan lainnya.
-    ![Gambar 2. Univariate Analysis Categorical Features ](univariate_categorical.png)
+    ![Gambar 2. Univariate Analysis Categorical Features ](https://github.com/azri-andrizan/Assets/blob/main/image_predictive_analysis/univariate_categorical.png)
     Gambar 2. _Univariate Analysis Categorical Features_
 
         Berdasarkan Gambar 2 diatas, tipe mesin dengan distribusi terbanyak adalah tipe L. Dataset membagi tipe mesin menjadi tiga kategori:
@@ -136,7 +121,7 @@ Selain itu, terdapat 6 kolom target dalam dataset ini, yang meliputi :
         - RNF (_Random Failures_) adalah Kegagalan acak yang tidak terklasifikasikan ke dalam kategori kegagalan lainnya.
 
     * _Numerical Features_
-    ![Gambar 3. Univariate Analysis Numerical Features ](univariate_numerical.png)
+    ![Gambar 3. Univariate Analysis Numerical Features ](https://github.com/azri-andrizan/Assets/blob/main/image_predictive_analysis/univariate_numerical.png)
     Gambar 3. _Univariate Analysis Numerical Features_
 
         Berdasarkan Gambar 3 diatas, dapat diambil beberapa informasi:
@@ -151,7 +136,7 @@ Selain itu, terdapat 6 kolom target dalam dataset ini, yang meliputi :
 * **_Multivariate Analysis_**
 
     * _Correlation between Numerical Variable_
-    ![Gambar 4. Multivariate Analysis Corelation Numerical Features ](korelasi_numerical.png)
+    ![Gambar 4. Multivariate Analysis Corelation Numerical Features ](https://github.com/azri-andrizan/Assets/blob/main/image_predictive_analysis/korelasi_numerical.png)
     Gambar 4. Korelasi antar Numerikal Variabel
 
         Pairplot pada Gambar 4 mengungkap pola hubungan antar fitur numerik dalam dataset, dengan wawasan berikut:
@@ -164,7 +149,7 @@ Selain itu, terdapat 6 kolom target dalam dataset ini, yang meliputi :
         - _Outliers_: Beberapa _outlier_ teridentifikasi pada _Process Temperature_ dan _Torque_, yang dapat menunjukkan kondisi ekstrem dengan potensi risiko kegagalan mesin.
     
     * _Bivariate Analysis of Categorical and Numerical Features_
-    ![Gambar 5. Bivariate Analysis of Categorical and Numerical Features ](bivariate_numerical_and_categorical.png)
+    ![Gambar 5. Bivariate Analysis of Categorical and Numerical Features ](https://github.com/azri-andrizan/Assets/blob/main/image_predictive_analysis/bivariate_numerical_and_categorical.png)
     Gambar 5. Analisis _Bivariate_ antara _Numerical_ dan _Categorical Features_
 
         Dari _boxplot_ pada Gambar 5 diatas dapat disimpulkan :
@@ -463,7 +448,7 @@ Model menunjukkan performa baik pada kelas mayoritas, tetapi kesulitan dalam men
 
 Karena recall rendah pada kelas 1, evaluasi dilanjutkan dengan metrik AUC-ROC untuk memberikan gambaran lebih seimbang. ROC memplot _True Positive Rate_ (TPR/recall) terhadap _False Positive Rate_ (FPR), sementara AUC mengukur kemampuan model membedakan antara dua kelas. Nilai AUC berkisar antara 0.5 (model acak) hingga 1 (model sempurna), dengan fokus pada meningkatkan deteksi kegagalan mesin.
 
-![Gambar 6. Kurva ROC Anomaly Detection ](roc_auc_anomaly.png)
+![Gambar 6. Kurva ROC Anomaly Detection ](https://github.com/azri-andrizan/Assets/blob/main/image_predictive_analysis/roc_auc_anomaly.png)
 
 Gambar 6. kurva ROC _Anomaly Detection_
 
@@ -600,7 +585,7 @@ Perbandingan _Classification Report_ dari ketiga model:
 
 Perbandingan _Confusion Matrix_ dari ketiga model :
 
-![Gambar 7 Perbandingan Confusion Matrix Antar Model](perbandingan_confusion.png)
+![Gambar 7 Perbandingan Confusion Matrix Antar Model](https://github.com/azri-andrizan/Assets/blob/main/image_predictive_analysis/perbandingan_confusion.png)
 
 Gambar 7. Perbandingan _Confusion Matrix_ Dari Ketiga Model
 
