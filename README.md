@@ -406,7 +406,7 @@ Metrik ini sangat berguna saat data tidak seimbang, karena mengimbangi precision
 Akurasi mengukur proporsi prediksi yang benar dari seluruh sampel:
 
 $$
-Accuracy = \frac{Trure Positives + True Negatives}{Total Samples}
+Accuracy = \frac{True Positives + True Negatives}{Total Samples}
 $$
 
 Namun, akurasi bisa menjadi metrik yang menyesatkan pada dataset yang tidak seimbang, karena model dapat memprediksi kelas mayoritas dengan akurasi tinggi meskipun gagal mendeteksi kelas minoritas.
