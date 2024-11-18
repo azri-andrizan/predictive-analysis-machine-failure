@@ -185,7 +185,20 @@ Dengan kode diatas maka masing-masing value pada kolom _Type_ dan _Failure Type_
 | False | False | True  | False           | True                   | ...|
 | ...   | ...   | ...   | ...             | ...                    | ...|
 
-Namun, value dari masing-masing kolom hasil _one hot encoding_ masih belum berbentuk numerik. Maka nilai _boolean_ ini diubah dari _True_ dan  _False_ menjadi 1 dan 0. 
+Sebelumnya pada dataframe kolom _Failure Type_ sudah ada dalam bentuk _One-Hot Encoding_. Namun pelabelan kolom masih dianggap kurang jelas, sehingga kolom _Failure Type_ yang sudah ada dalam bentuk _One-Hot Encoding_ akan di _drop_ (dihapus) dan akan digantikan dengan hasil _One-Hot Encoding_ sebelumnya. Sehingga kolom yang sebelumnya seperti :
+| ...| TWF| HDF| PWF| OSF| RNF| ...|
+| :--| :--| :--| :--| :--| :--| :--|
+| ...| 0  | 1  | 0  | 0  | 0  | ...|
+| ...| ...| ...| ...| ...| ...| ...|
+
+digantikan dengan hasil _One-Hot Encoding_ sebelumnya, menjadi seperti :
+
+| ...| Failure Type_TWF| Failure Type_HDF| Failure Type_PWF| Failure Type_OSF| Failure Type_RNF| ...|
+| :--| :--| :--| :--| :--| :--| :--|
+| ...| False  | True  | False  | False  | False  | ...|
+| ...| ...| ...| ...| ...| ...| ...|
+
+Selanjutnya, value dari masing-masing kolom hasil _one hot encoding_ masih belum berbentuk numerik. Maka nilai _boolean_ ini diubah dari _True_ dan  _False_ menjadi 1 dan 0. 
 
 ```python
 # Mengubah value boolean menjadi integer pada kolom hasil one hot encoding
@@ -228,17 +241,33 @@ menjadi seperti berikut :
 | -0.95275           | -1.01526               | ...|
 | ...                | ...                    | ...|
 
-## **Pembuatan Target untuk Tahap Pertama (Deteksi Anomali)**
+## **Penghapusan Fitur Yang Tidak Diperlukan**
+Pada tahap data preparation, juga dilakukan penghapusan fitur-fitur tertentu seperti **UDI** dan **Product ID** dari kolom dataframe. Langkah ini dilakukan berdasarkan evaluasi kebutuhan model, dengan alasan berikut:
+
+1.   Tidak Relevan untuk Prediksi: Fitur seperti UDI (Unique Data Identifier) dan Product ID hanya berfungsi sebagai pengenal unik atau label administratif pada data dan tidak memiliki hubungan langsung dengan variabel target. Dengan demikian, fitur ini tidak memberikan informasi prediktif yang bermanfaat untuk model.
+2. Meningkatkan Efisiensi Model: Menghapus fitur yang tidak relevan membantu mengurangi dimensi data, sehingga meningkatkan efisiensi proses pelatihan model dan mengurangi kemungkinan overfitting.
+3. Penyederhanaan Dataset: Dengan membuang fitur yang tidak diperlukan, analisis data menjadi lebih sederhana dan fokus tetap pada fitur yang memiliki signifikansi terhadap tugas prediksi kegagalan mesin.
+
+
+Penghapusan dilakukan menggunakan fungsi pandas ```.drop()```, memastikan bahwa perubahan ini tidak memengaruhi integritas dataset lain yang mungkin masih memerlukan informasi tersebut untuk keperluan administratif atau dokumentasi. Langkah ini merupakan bagian penting dari pipeline data preparation untuk memastikan model dapat bekerja secara optimal hanya dengan fitur yang relevan.
+``` python
+# Menghapus fitur yang tidak diperlukan untuk model nantinya
+df_for_anomaly = df_for_anomaly.drop(columns=['UDI', 'Product ID'])
+df_for_anomaly.head()
+```
+
+
+## **Pembuatan Fitur dan Target untuk Tahap Pertama (Deteksi Anomali)**
 Karena distribusi data yang sangat _imbalanced_ dengan mayoritas label "_No Failure_," tahap pertama fokus pada klasifikasi biner untuk mendeteksi anomali. Proses ini membantu model membedakan kejadian kegagalan dari operasional normal.
-```python
-# Memisahkan fitur dan target untuk tahap 1 (anomaly detection)
+
+``` python
 x_anomaly = df_for_anomaly.drop(columns=['Machine failure', 'Failure Type_HDF', 'Failure Type_No Failure', 'Failure Type_OSF', 'Failure Type_PWF', 'Failure Type_TWF'])
 y_anomaly = df_for_anomaly['Machine failure']
 ```
 
 Dengan kode diatas, fitur dan target dipisahkan menjadi **x_anomaly** dan **y_anomaly**. Dimana **x** mewakili fitur dan **y** mewakili target. **x_anomaly** memiliki semua kolom yang ada pada dataframe terkecuali kolom _Machine failure_, _Failure Type_HDF_, _Failure Type_No Failure_, _Failure Type_OSF_, _Failure Type_PWF_, _Failure Type_TWF_. Sedangkan **y_anomaly** hanya memiliki kolom target yakni _Machine failure_.
 
-## **Pemisahan Data untuk Pelatihan dan Pengujian**
+## **Pemisahan Data untuk Pelatihan dan Pengujian Tahap Pertama (_Anomaly Detection_)**
 Setelah _preprocessing_, data dibagi menjadi _training set_ dan _testing set_ dengan rasio tertentu, memastikan evaluasi model pada data yang tidak terlihat selama pelatihan untuk memberikan gambaran yang lebih akurat mengenai kinerjanya di dunia nyata.
 
 ```python
@@ -250,7 +279,55 @@ x_train_anomaly, x_test_anomaly, y_train_anomaly, y_test_anomaly = train_test_sp
 
 Kode diatas akan membagi dataset menjadi data untuk _training model_ dan _testing model_ untuk evaluasi model nantinya. Jadi **x_anomaly** di _split_ menjadi **x_train_anomaly** dan **x_test_anomaly**, begitu juga dengan **y_anomaly** di _split_ menjadi **y_train_anomaly** dan **y_test_anomaly**. Data _training_ dan _testing_ dibagi dengan rasio 80 : 20, dimana pada kode diatas ditunjukkan oleh parameter test_size pada train_test_split. test_size=0.2 berarti ukuran untuk data _testing_ adalah 20% sedangkan selebihnya adalah data _training_. Pembagian data ini bertujuan agar model dapat dilatih dan diuji dengan data yang berbeda, untuk memastikan saat pengujian model melihat data yang belum pernah dilihat sebelumnya pada proses _training_.
 
-# **_Modelling_**
+Proses ini mencakup beberapa langkah utama:
+
+## **Pemilihan fitur dan Penetapan Target Tahap Kedua (_Multiclassification_)**
+
+Dataset pada tahap ini hanya mencakup sampel yang telah diidentifikasi sebagai kegagalan (_anomaly_) pada tahap sebelumnya. Fitur-fitur yang memiliki relevansi tinggi dipilih kembali untuk memastikan model mampu memprediksi jenis kegagalan dengan akurasi optimal. Target klasifikasi adalah tipe kegagalan mesin dengan beberapa kelas yang merepresentasikan masing-masing jenis kegagalan.
+```python
+# Menggunakan prediksi anomaly detection sebagai fitur baru
+df_for_anomaly['Anomaly Prediction'] = rf_anomaly.predict(df_for_anomaly.drop(columns=['Machine failure', 'Failure Type_HDF', 'Failure Type_No Failure', 'Failure Type_OSF', 'Failure Type_PWF', 'Failure Type_TWF']))
+```
+    
+Hasil dari model _anomaly detection_ dijadikan sebagai fitur baru pada dataframe untuk mendukung model _multiclass classification_ sehingga pada dataframe terdapat kolom baru yang menunjukkan _value anomaly prediction_. _Value_ tersebut bertipe _boolean_ dimana nilai 1 mewakili mesin yang dianggap _anomaly_ (mengalami kerusakan) dan nilai 0 mewakili mesin yang dianggap normal, seperti yang tampak pada kolom berikut.
+
+| ...| Failure Type_TWF| Anomaly Prediction|
+| :--| :---------------| :-----------------|
+| ...| 0               | 0                 |
+| ...| 1               | 1                 |
+| ...| ...             | ...               |
+
+Selanjutnya menentukan fitur dan target untuk model multiklasifikasi.
+```python
+# Menentukan fitur dan target untuk model multiklasifikasi
+x_multiclass = df_for_anomaly.drop(columns=['Machine failure', 'Failure Type_HDF', 'Failure Type_No Failure', 'Failure Type_OSF', 'Failure Type_PWF', 'Failure Type_TWF'])
+y_multiclass = df_for_anomaly[['Failure Type_HDF', 'Failure Type_OSF', 'Failure Type_PWF', 'Failure Type_TWF']]
+```
+
+Kode diatas membagi fitur dan target, dimana **x_multiclass** adalah fitur yang terdiri dari semua kolom terkecuali kolom *Machine failure*, *Failure Type_HDF*, *Failure Type_No Failure*, *Failure Type_OSF*, *Failure Type_PWF*, *Failure Type_TWF*. Sedangkan **y_multiclass** adalah target yang hanya terdiri dari kolom *Failure Type_HDF*, *Failure Type_OSF*, *Failure Type_PWF*, *Failure Type_TWF*.
+
+## **Pembagian Data _Training_ dan _Testing_ Tahap Kedua (_Multiclassification_)**
+
+Data yang telah difilter berdasarkan jenis kegagalan dibagi menjadi dua subset, yaitu data training dan data testing. Pembagian ini dilakukan untuk memastikan bahwa model dapat dilatih secara efektif sekaligus dievaluasi dengan baik, guna menghindari overfitting.
+    
+```python
+# Split data training dan testing untuk model multiklasifikasi
+x_train_multiclass, x_test_multiclass, y_train_multiclass, y_test_multiclass = train_test_split(x_multiclass, y_multiclass, test_size=0.2, random_state=42, stratify=y_multiclass)
+```
+
+Sama seperti pada tahap sebelumnya, data di _split_ menjadi data _training_ dan _testing_ dengan rasio 80 : 20, dimana 80 % adalah data _training_ dan 20 % adalah data _testing.
+
+
+Setelah dilakukan pembagian data menjadi data _training_ dan _testing_, selanjutnya dilakukan teknik _oversampling_. Hal ini dilakukan karena seperti yang diketahui adanya ketidakseimbangan distribusi data tiap kelasnya.
+
+```python
+# Mengatasi imbalanced data dengan SMOTE
+from imblearn.over_sampling import SMOTE
+smote = SMOTE(random_state=42)
+x_train_multiclass_resampled, y_train_multiclass_resampled = smote.fit_resample(x_train_multiclass, y_train_multiclass.values.argmax(axis=1))
+```
+
+# **_Model Development_**
 Pada bagian Modelling, proyek ini terbagi menjadi dua tahap pemodelan utama. Tahap pertama adalah Anomaly Detection, yang bertujuan untuk mendeteksi kejadian yang tidak biasa atau anomali dalam data. Pada tahap ini, model dikembangkan untuk memisahkan kejadian kegagalan dari operasional normal.
 
 Tahap kedua adalah Multiclassification, di mana model dikembangkan untuk mengklasifikasikan jenis kegagalan mesin menjadi beberapa kategori berdasarkan fitur yang telah diproses. Setiap tahap pemodelan ini memainkan peran penting dalam memprediksi dan menganalisis kondisi mesin untuk meningkatkan efisiensi operasional.
@@ -274,80 +351,67 @@ Pada tahap kedua, proses klasifikasi multikelas dilakukan untuk menentukan jenis
 
 Pada tahap kedua, proses klasifikasi multikelas dilakukan untuk menentukan jenis kegagalan spesifik pada mesin yang sebelumnya telah terdeteksi sebagai anomali oleh model pada tahap pertama. Langkah ini bertujuan untuk mengidentifikasi kategori kegagalan, seperti HDF, PWF, OSF, atau TWF, berdasarkan fitur-fitur yang tersedia, sehingga dapat memberikan informasi yang lebih mendalam dan mendukung pengambilan keputusan lebih lanjut.
 
-Proses ini mencakup beberapa langkah utama:
+Model klasifikasi multikelas yang digunakan mencakup **Random Forest**, **SVM**, dan **XGBoost**. Ketiga model ini dipilih karena memiliki performa yang andal dalam menangani data dengan distribusi kelas yang mungkin masih tidak seimbang (_imbalanced_). Kinerja masing-masing model akan dievaluasi berdasarkan metrik tertentu, seperti akurasi, F1-score, dan AUC-ROC, untuk menentukan model terbaik dalam mendeteksi jenis kegagalan mesin.
 
-*   **Pemilihan fitur dan Penetapan Target**
+Berikut perbandingan karakteristik dari tiga model yang digunakan.
 
-    Dataset pada tahap ini hanya mencakup sampel yang telah diidentifikasi sebagai kegagalan (_anomaly_) pada tahap sebelumnya. Fitur-fitur yang memiliki relevansi tinggi dipilih kembali untuk memastikan model mampu memprediksi jenis kegagalan dengan akurasi optimal. Target klasifikasi adalah tipe kegagalan mesin dengan beberapa kelas yang merepresentasikan masing-masing jenis kegagalan.
-    ```python
-    # Menggunakan prediksi anomaly detection sebagai fitur baru
-    df_for_anomaly['Anomaly Prediction'] = rf_anomaly.predict(df_for_anomaly.drop(columns=['Machine failure', 'Failure Type_HDF', 'Failure Type_No Failure', 'Failure Type_OSF', 'Failure Type_PWF', 'Failure Type_TWF']))
-    ```
+*   **_Random Forest_**
+    - Karaketeristik : Random Forest adalah metode ensemble learning berbasis pohon keputusan (decision tree) yang menggabungkan prediksi dari beberapa pohon untuk menghasilkan hasil akhir yang lebih baik. Model ini menggunakan teknik bagging, di mana data latih dibagi secara acak untuk membangun banyak pohon.
+    - Kekuatan :
+        * Kemampuan Generalisasi Tinggi: Dengan menggunakan rata-rata dari banyak pohon, model ini mampu mengurangi overfitting dibandingkan decision tree tunggal.
+        * Robust terhadap Noise dan Outlier: Karena memanfaatkan rata-rata prediksi dari beberapa pohon, model lebih tahan terhadap data yang mengandung noise.
+        * Mampu Menangani Data yang Tidak Seimbang: Dengan penerapan class_weight, Random Forest bisa menyesuaikan bobot untuk menangani kelas minoritas.
+        * Feature Importance: Memberikan wawasan tentang fitur mana yang paling berkontribusi terhadap prediksi.
+    - Kelemahan :
+        * Waktu dan Memori: Membutuhkan waktu komputasi dan memori yang lebih besar dibandingkan model sederhana.
+        * Kurang Efektif pada Data Sangat Besar: Skalabilitas dapat menjadi masalah ketika data sangat besar dengan banyak fitur.
+
+*   **SVM**
+    - Karakteristik : SVM adalah model yang mencari hyperplane terbaik yang memisahkan kelas data secara maksimal. Untuk data non-linear, SVM menggunakan kernel trick untuk memetakan data ke ruang berdimensi lebih tinggi.
+    - Kekuatan :
+        * Efektif pada Dimensi Tinggi: SVM bekerja dengan baik pada dataset dengan banyak fitur.
+        * Flexible dengan Kernel: Kernel memungkinkan SVM untuk menangani data yang non-linear.
+        * Robust terhadap Overfitting: Dengan margin maksimal, SVM cenderung tidak overfit pada data kecil.
+    - Kelemahan :
+        * Waktu Komputasi Tinggi: Kurang efisien untuk dataset yang sangat besar.
+        * Sulit pada Data Tidak Seimbang: Membutuhkan penyesuaian parameter atau penggunaan strategi seperti SMOTE untuk menangani ketidakseimbangan kelas.
+        * Kurang Interpretasi: Tidak memberikan wawasan tentang pentingnya fitur.
+
+*   **_XG Boost_**
+    - Karakteristik : XGBoost adalah algoritma berbasis boosting yang membangun model secara iteratif dengan memberi bobot lebih pada kesalahan dari iterasi sebelumnya. Model ini mengoptimalkan fungsi loss menggunakan teknik gradient boosting yang sangat efisien.
+    - Kekuatan :
+        * Performa Tinggi: Salah satu algoritma terdepan dalam kompetisi machine learning, khususnya pada data besar.
+        * Tahan terhadap Data Tidak Seimbang: Meskipun tidak menggunakan class_weight, model ini memiliki parameter seperti scale_pos_weight untuk menangani ketidakseimbangan kelas.
+        * Kemampuan Feature Selection: Secara otomatis dapat memilih fitur yang paling relevan.
+        * Efisiensi Komputasi: Memanfaatkan optimasi hardware untuk mempercepat pelatihan.
+    - Kelemahan :
+        * Hyperparameter Tuning: Memerlukan penyesuaian hyperparameter yang kompleks untuk mendapatkan performa optimal.
+        * Lebih Rentan terhadap Overfitting: Jika jumlah pohon terlalu besar atau regularisasi tidak cukup.
+        * Kurang Interpretatif: Walaupun memberikan feature importance, model sering kali sulit untuk dijelaskan kepada audiens non-teknis.
+
+```python
+# Membangun model prediksi multiklasifikasi (jenis kegagalan pada mesin)
+# Random Forest Model
+from sklearn.ensemble import RandomForestClassifier
+rf_multiclass = RandomForestClassifier(class_weight='balanced', random_state=42)
+rf_multiclass.fit(x_train_multiclass_resampled, y_train_multiclass_resampled)
+y_pred_rf = rf_multiclass.predict(x_test_multiclass)
     
-    Hasil dari model _anomaly detection_ dijadikan sebagai fitur baru pada dataframe untuk mendukung model _multiclass classification_ sehingga pada dataframe terdapat kolom baru yang menunjukkan _value anomaly prediction_. _Value_ tersebut bertipe _boolean_ dimana nilai 1 mewakili mesin yang dianggap _anomaly_ (mengalami kerusakan) dan nilai 0 mewakili mesin yang dianggap normal, seperti yang tampak pada kolom berikut.
-
-    | ...| Failure Type_TWF| Anomaly Prediction|
-    | :--| :---------------| :-----------------|
-    | ...| 0               | 0                 |
-    | ...| 1               | 1                 |
-    | ...| ...             | ...               |
-
-    Selanjutnya menentukan fitur dan target untuk model multiklasifikasi.
-    ```python
-    # Menentukan fitur dan target untuk model multiklasifikasi
-    x_multiclass = df_for_anomaly.drop(columns=['Machine failure', 'Failure Type_HDF', 'Failure Type_No Failure', 'Failure Type_OSF', 'Failure Type_PWF', 'Failure Type_TWF'])
-    y_multiclass = df_for_anomaly[['Failure Type_HDF', 'Failure Type_OSF', 'Failure Type_PWF', 'Failure Type_TWF']]
-    ```
-
-    Kode diatas membagi fitur dan target, dimana **x_multiclass** adalah fitur yang terdiri dari semua kolom terkecuali kolom *Machine failure*, *Failure Type_HDF*, *Failure Type_No Failure*, *Failure Type_OSF*, *Failure Type_PWF*, *Failure Type_TWF*. Sedangkan **y_multiclass** adalah target yang hanya terdiri dari kolom *Failure Type_HDF*, *Failure Type_OSF*, *Failure Type_PWF*, *Failure Type_TWF*.
-
-*   **Pembagian Data _Training_ dan _Testing_**
-
-    Data yang telah difilter berdasarkan jenis kegagalan dibagi menjadi dua subset, yaitu data training dan data testing. Pembagian ini dilakukan untuk memastikan bahwa model dapat dilatih secara efektif sekaligus dievaluasi dengan baik, guna menghindari overfitting.
+# SVM Model
+from sklearn.svm import SVC
+svm_multiclass = SVC(kernel='linear', probability=True, class_weight='balanced', random_state=42)
+svm_multiclass.fit(x_train_multiclass_resampled, y_train_multiclass_resampled)
+y_pred_svm = svm_multiclass.predict(x_test_multiclass)
     
-    ```python
-    # Split data training dan testing untuk model multiklasifikasi
-    x_train_multiclass, x_test_multiclass, y_train_multiclass, y_test_multiclass = train_test_split(x_multiclass, y_multiclass, test_size=0.2, random_state=42, stratify=y_multiclass)
-    ```
+# XG Boost Model
+from sklearn.ensemble import GradientBoostingClassifier
+xgb_multiclass = GradientBoostingClassifier(random_state=42)
+xgb_multiclass.fit(x_train_multiclass_resampled, y_train_multiclass_resampled)
+```
 
-    Sama seperti pada tahap sebelumnya, data di _split_ menjadi data _training_ dan _testing_ dengan rasio 80 : 20, dimana 80 % adalah data _training_ dan 20 % adalah data _testing.
+Dari kode di atas, terlihat bahwa model **Random Forest** dan **SVM** menggunakan parameter *class_weight* untuk menangani data yang tidak seimbang (_imbalanced data_). Meskipun sebelumnya telah diterapkan teknik _oversampling_ untuk memperbaiki distribusi kelas, pembobotan tambahan melalui *class_weight* dilakukan sebagai langkah antisipasi terhadap potensi ketidakseimbangan yang mungkin masih terjadi setelah proses _oversampling_.
 
-
-    Setelah dilakukan pembagian data menjadi data _training_ dan _testing_, selanjutnya dilakukan teknik _oversampling_. Hal ini dilakukan karena seperti yang diketahui adanya ketidakseimbangan distribusi data tiap kelasnya.
-
-    ```python
-    # Mengatasi imbalanced data dengan SMOTE
-    from imblearn.over_sampling import SMOTE
-    smote = SMOTE(random_state=42)
-    x_train_multiclass_resampled, y_train_multiclass_resampled = smote.fit_resample(x_train_multiclass, y_train_multiclass.values.argmax(axis=1))
-    ```
-*   **Pemilihan dan Pembangunan Model**
-
-    Model klasifikasi multikelas yang digunakan mencakup **Random Forest**, **SVM**, dan **XGBoost**. Ketiga model ini dipilih karena memiliki performa yang andal dalam menangani data dengan distribusi kelas yang mungkin masih tidak seimbang (_imbalanced_). Kinerja masing-masing model akan dievaluasi berdasarkan metrik tertentu, seperti akurasi, F1-score, dan AUC-ROC, untuk menentukan model terbaik dalam mendeteksi jenis kegagalan mesin.
-
-    ```python
-    # Membangun model prediksi multiklasifikasi (jenis kegagalan pada mesin)
-    # Random Forest Model
-    from sklearn.ensemble import RandomForestClassifier
-    rf_multiclass = RandomForestClassifier(class_weight='balanced', random_state=42)
-    rf_multiclass.fit(x_train_multiclass_resampled, y_train_multiclass_resampled)
-    y_pred_rf = rf_multiclass.predict(x_test_multiclass)
-    
-    # SVM Model
-    from sklearn.svm import SVC
-    svm_multiclass = SVC(kernel='linear', probability=True, class_weight='balanced', random_state=42)
-    svm_multiclass.fit(x_train_multiclass_resampled, y_train_multiclass_resampled)
-    y_pred_svm = svm_multiclass.predict(x_test_multiclass)
-    
-    # XG Boost Model
-    from sklearn.ensemble import GradientBoostingClassifier
-    xgb_multiclass = GradientBoostingClassifier(random_state=42)
-    xgb_multiclass.fit(x_train_multiclass_resampled, y_train_multiclass_resampled)
-    ```
-
-    Dari kode di atas, terlihat bahwa model **Random Forest** dan **SVM** menggunakan parameter *class_weight* untuk menangani data yang tidak seimbang (_imbalanced data_). Meskipun sebelumnya telah diterapkan teknik _oversampling_ untuk memperbaiki distribusi kelas, pembobotan tambahan melalui *class_weight* dilakukan sebagai langkah antisipasi terhadap potensi ketidakseimbangan yang mungkin masih terjadi setelah proses _oversampling_.
-
-    Berbeda dengan kedua model tersebut, **XGBoost** tidak memerlukan parameter *class_weight*. Hal ini dikarenakan algoritma **XGBoost** secara inheren lebih tahan terhadap data yang tidak seimbang, berkat mekanisme pembobotan internalnya yang secara adaptif menyesuaikan bobot pada setiap iterasi untuk meminimalkan kesalahan prediksi pada kelas minoritas.
+Berbeda dengan kedua model tersebut, **XGBoost** tidak memerlukan parameter *class_weight*. Hal ini dikarenakan algoritma **XGBoost** secara inheren lebih tahan terhadap data yang tidak seimbang, berkat mekanisme pembobotan internalnya yang secara adaptif menyesuaikan bobot pada setiap iterasi untuk meminimalkan kesalahan prediksi pada kelas minoritas.
 
 # **Model Evaluasi**
 Untuk mengevaluasi performa model prediktif kegagalan mesin, digunakan dua metrik utama yang saling melengkapi, yaitu _classification report_ dan _confusion matrix_. Keduanya memberikan gambaran komprehensif tentang kinerja model dari berbagai aspek.
@@ -593,31 +657,16 @@ Dari tabel _Classification Report_ dan _Confusion Matrix_ diatas dapat diambil k
 *   **Model _Random Forest_**
     - _Performance Overview_ : 
     Model Random Forest menunjukkan performa yang stabil dalam mendeteksi kegagalan mesin pada dataset yang tidak seimbang. Penggunaan parameter *class_weight* membantu menyeimbangkan distribusi kelas, sehingga model mampu memberikan precision yang baik pada kelas minoritas. Namun, recall pada kelas ini tetap rendah, yang menunjukkan bahwa beberapa kasus tidak terdeteksi.
-    - _Strengths_:
-        * Akurasi tinggi pada kelas mayoritas
-        * _Precision_ pada kelas minoritas cukup baik berkat pembobotan yang menyesuaikan distribusi kelas.
-    - _Weakness_:
-        * _Recall_ rendah untuk kelas minoritas, yang menunjukkan bahwa model masih melewatkan beberapa _instance_ penting.
 
 *   **Model SVM**
     - _Performance Overview_ :
     Model SVM menggunakan kernel non-linear dan *class_weight* untuk menangani ketidakseimbangan kelas. _Precision_ pada kelas minoritas sangat tinggi, tetapi _recall_ tetap rendah, serupa dengan **Random Forest**. Ini menunjukkan bahwa meskipun SVM jarang salah memprediksi jenis kegagalan, model ini kesulitan dalam menangkap semua kasus jenis kegagalan.
-    - _Strengths_:
-        * Kemampuan mendeteksi kelas mayoritas dengan baik.
-        * _Precision_ tinggi pada kelas minoritas, menunjukkan sedikitnya _false positives_.
-    - _Weakness_:
-        * Rendahnya _recall_ menunjukkan bahwa model kurang mampu mengenali semua jenis kegagalan.
-        * Memerlukan waktu komputasi yang lebih lama dibandingkan model lainnya.
 
 *   **Model _XG Boost_**
     - _Performance Overview_:
     **XGBoost**, yang secara bawaan tahan terhadap data tidak seimbang, memberikan hasil evaluasi yang cukup baik. Model ini menunjukkan keseimbangan antara _precision_ dan _recall_ pada kelas minoritas, namun masih cukup banyak terdapat kesalahan prediksi pada kelas mayoritas maupun minoritas.
-    - _Strengths_:
-        * Keseimbangan _precision_ dan _recall_ pada kelas minoritas.
-    - _Weakness_:
-        * Walaupun performanya lebih baik pada kelas minoritas, **XGBoost** tetap tidak sempurna dalam menangkap semua kegagalan pada kelas minoritas.
-
-# **Conclusion**
+    
+## **Conclusion**
 
 Berdasarkan evaluasi dari _confusion matrix_ dan _classification report_, model **Random Forest** dipilih sebagai yang terbaik untuk tugas prediktif kegagalan mesin.
 
@@ -628,6 +677,19 @@ Alasan pemilihan :
 4.  Kinerja Keseluruhan: **Random Forest** memiliki nilai rata-rata _precision_, _recall_, dan _F1-score_ (_macro average_) yang unggul dibandingkan model lain, memberikan prediksi konsisten di semua kelas.
 
 Model **Random Forest** dipilih karena kombinasi keandalannya pada kelas dominan, kemampuan mendeteksi kelas minoritas, dan kinerja keseluruhan yang lebih baik. Model ini cukup efektif untuk mendukung pengambilan keputusan berbasis data dalam pengelolaan operasional mesin, dengan potensi pengembangan lebih lanjut untuk peningkatan performa.
+
+Dari hasil tersebut, sudah menjawab _Problem Statement_ dan _Goals_ yang ingin dicapai. Berikut penjelasannya :
+*   Mengembangkan Solusi Berbasis _Anomaly Detection_ untuk Mengidentifikasi Penyimpangan Operasional Mesin. Hasil proyek ini sesuai dengan tujuan untuk mengembangkan solusi anomaly detection dalam mengidentifikasi penyimpangan operasional yang berpotensi menjadi indikasi kegagalan mesin. Melalui penggunaan model _Random Forest_ yang memanfaatkan data historis, model ini dapat mendeteksi penyimpangan dari pola operasional normal, seperti yang terlihat pada hasil recall yang tinggi untuk kelas dominan (mesin tidak gagal) dan stabilitas dalam mendeteksi anomali pada kelas minoritas. Hal ini juga menjawab **Problem Statement** poin pertama pada laporan proyek ini, dimana solusi berbasis _Anomaly Detection_ telah berhasil memanfaatkan data historis untuk memprediksi terjadinya kegagalan pada mesin sejak dini.
+
+*   Membangun Model Multiklasifikasi untuk Mengidentifikasi Jenis Kegagalan Mesin. Hasil proyek ini berhasil membangun model multiklasifikasi dengan menggunakan algoritma _Random Forest_, _SVM_, dan _XGBoost_ untuk mengidentifikasi jenis kegagalan mesin secara spesifik. Dalam hal ini, model mampu memprediksi berbagai jenis kegagalan berdasarkan parameter teknis yang ada dalam dataset. Meskipun kelas kegagalan (kelas 1 dan seterusnya) lebih sulit diprediksi, model ini mampu memberikan prediksi yang cukup baik untuk setiap kelas, dengan performa terbaik tercatat pada model _Random Forest_.
+
+*   Mengoptimalkan Performa Deteksi pada Kelas Minoritas melalui Penerapan Teknik Oversampling seperti SMOTE. Penerapan teknik oversampling seperti SMOTE dalam proyek ini berperan penting dalam meningkatkan deteksi kegagalan mesin yang jarang terjadi (kelas minoritas). Setelah menggunakan SMOTE, model Random Forest menunjukkan peningkatan recall pada kelas minoritas, yang menunjukkan bahwa teknik ini efektif dalam memperbaiki prediksi untuk kegagalan yang lebih jarang. Dengan demikian, tujuan ini tercapai dengan baik. Hal ini juga menjawab **Problem Statemnet** poin 2 dimana teknik SMOTE ini mampu meningkatkan prediksi model terutama pada kelas minoritas walau masih terdapat beberapa kesalahan prediksi kelas minoritas, namun hasil yang didapat sudah cukup baik.
+
+*   Membandingkan Performa dari 3 Jenis Model Algoritma Machine Learning dan Memilih Model Terbaik Berdasarkan Metrik Evaluasi. Proyek ini membandingkan tiga jenis model _machine learning Random Forest_, _SVM_, dan _XGBoost_ dalam hal prediksi kegagalan mesin. Berdasarkan evaluasi menggunakan _confusion matrix_, _classification report_, dan AUC-ROC, model _Random Forest_ terpilih sebagai model terbaik. Hal ini dikarenakan _Random Forest_ menunjukkan kombinasi keandalan dalam memprediksi kelas dominan dan stabilitas dalam deteksi kelas minoritas, meskipun tetap ada ruang untuk perbaikan. Pemilihan ini mendukung pengambilan keputusan berbasis data dalam pemeliharaan mesin yang juga menjawab **Problem Statement** poin 3.
+
+Proyek ini berhasil menjawab berbagai goals yang diajukan dengan mengembangkan solusi _anomaly detection_ berbasis _machine learning_ yang efektif untuk deteksi dini kegagalan mesin. Teknik seperti SMOTE untuk menangani ketidakseimbangan data, dan perbandingan antara model-model _machine learning_, menunjukkan bagaimana setiap langkah diambil untuk mendukung keberhasilan sistem _predictive maintenance_ yang dapat membantu pengambilan keputusan lebih baik dalam pengelolaan operasional mesin.
+
+**Solution Statement** yang diusulkan dalam proyek ini sangat efektif dalam menyelesaikan **Problem Statement** dan mencapai **Goals** yang telah ditetapkan. Pendekatan dua tahap, dimulai dengan _anomaly detection_, berhasil mendeteksi pola operasional mesin yang menyimpang dari kondisi normal, sehingga potensi kegagalan dapat diidentifikasi lebih dini. Tahap kedua, yaitu model multiklasifikasi dengan tiga algoritma (_Random Forest_, _SVM_, dan _XGBoost_), memberikan kemampuan untuk mengklasifikasikan jenis kegagalan mesin secara lebih spesifik dan akurat. Teknik _oversampling_ SMOTE berhasil mengatasi ketidakseimbangan data dengan meningkatkan kemampuan model dalam mendeteksi kegagalan minoritas yang jarang terjadi. Evaluasi menggunakan metrik AUC-ROC, _precision_, _recall_, _F1-score_, dan _confusion matrix_ memastikan bahwa model memberikan prediksi yang akurat dan konsisten, serta mendukung pengambilan keputusan berbasis data dalam pemeliharaan preventif dan _predictive maintenance_.
 
 
 # **Referensi**
